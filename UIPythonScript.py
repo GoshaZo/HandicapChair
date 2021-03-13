@@ -2,9 +2,33 @@ import serial
 import tkinter as tk
 import random
 import nidaqmx
+from nidaqmx.constants import TerminalConfiguration
 import time
 from datetime import datetime
 import csv
+import math
+
+def linearisation(tasklist):
+    tasklist[5] = 11.06*tasklist[5]+1.408 #y = 11.06x + 1.408
+    tasklist[6] = 11.06*tasklist[6]+1.408
+    tasklist[3] = math.exp((tasklist[3]+1.5944)/0.722) #y = 0.722ln(x) - 1.5944
+    tasklist[4] = math.exp((tasklist[4]+1.5944)/0.722)
+
+
+def writetofile(seq,title,timestr):
+    pass
+    # try:
+    #     seq.insert(0, str(title))
+    #     seq.insert(0, timestr)
+    # except:
+    #     seq=[seq]
+    #     seq.insert(0, str(title))
+    #     seq.insert(0, timestr)
+    # seq = seq + [0] * (72 - len(seq))
+    # with open('data from '+timestr[0:10]+' data.csv', 'a', newline='') as file:
+    #     writer = csv.writer(file)
+    #     writer.writerow(seq)
+
 
 
 def back_ground(val):
@@ -77,14 +101,13 @@ ser1index = [0, 1, 2, 3, 4, 5, 6, 7, 8, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 
 ser2index = [2, 3, 4, 8, 9, 13, 14, 19, 24]
 ser5index = [0, 1, 5, 6, 10, 11, 12, 15, 16, 17, 20, 21, 22, 25, 26, 27, 30, 31, 32, 35, 36, 37, 40, 41, 42, 45, 46, 47,
              50, 51, 52]
-sensorname = ['dmux1', 'dmux2', 'dmux3', 'R.knee', 'L.knee', 'R.stret', 'L.stret', 'R.x', 'R.y', 'L.x', 'L.y']
+sensorname = ['eng1', 'eng2', 'eng3', 'R.knee', 'L.knee', 'R.stret', 'L.stret', 'R.x', 'R.y', 'L.x', 'L.y']
 seq = []
 seq1 = []
 seq2 = []
 seq5 = []
 count = 1
 tasklist = []
-seqtemp = []
 flag: int = 0
 labels = []
 labels1 = []
@@ -96,8 +119,9 @@ labelssensor = []
 h = 1
 w = 5
 bw = 2
-
-while True:
+oldtime = time.time()
+z=0
+while z<100:
     # a = ser.read_until(b'#')
     b = ser.read_until(b'\x00')
     d = ser.read_until(b'#')
@@ -198,15 +222,15 @@ while True:
         seq1[0] = seq1[0][seq1[0].rfind('\\x00') + 4:]
     # seq1[-1] = seq1[-1].replace('#', '')
     seq1[-1] = seq1[-1][:-2]
-    seqtemp = [seq1[x] for x in ser1index]
+    seq1 = [seq1[x] for x in ser1index]
 
     # for idx, val in enumerate(seq1):
     #     if int(val) > 1000:
     #         indexlist.append(idx) if idx not in indexlist else indexlist
     # indexlist.sort()
-    seqtemp.insert(9, 'null')
-    seqtemp.insert(10, 'null')
-    seqtemp = seqtemp[::-1]
+    seq1.insert(9, 'null')
+    seq1.insert(10, 'null')
+    seq1 = seq1[::-1]
     k = 0
     if flag == 0:
         for i in range(3):
@@ -218,8 +242,8 @@ while True:
                 )
                 frame1.grid(row=j, column=i)
                 try:
-                    label = tk.Label(master=frame1, text=str(seqtemp[k]), width=w, height=h,
-                                     background=back_ground(str(seqtemp[k])))
+                    label = tk.Label(master=frame1, text=str(seq1[k]), width=w, height=h,
+                                     background=back_ground(str(seq1[k])))
                 except:
                     label = tk.Label(master=frame1, text='none', width=w, height=h, background="#808080")
                 label.pack()
@@ -236,8 +260,8 @@ while True:
     else:
         for i in range(11):
             for j in range(3):
-                labels1[k].configure(text=str(seqtemp[k]), width=w, height=h,
-                                     background=back_ground(str(seqtemp[k])))
+                labels1[k].configure(text=str(seq1[k]), width=w, height=h,
+                                     background=back_ground(str(seq1[k])))
                 k += 1
     #########################
 
@@ -366,18 +390,22 @@ while True:
                                      background=back_ground(str(seq5[k])))
                 k += 1
     with nidaqmx.Task() as task:
-        task.ai_channels.add_ai_voltage_chan("Dev1/ai0")
-        task.ai_channels.add_ai_voltage_chan("Dev1/ai1")
-        task.ai_channels.add_ai_voltage_chan("Dev1/ai2")
-        task.ai_channels.add_ai_voltage_chan("Dev1/ai3")
-        task.ai_channels.add_ai_voltage_chan("Dev1/ai4")
-        task.ai_channels.add_ai_voltage_chan("Dev1/ai5")
-        task.ai_channels.add_ai_voltage_chan("Dev1/ai13")
-        task.ai_channels.add_ai_voltage_chan("Dev1/ai6")
-        task.ai_channels.add_ai_voltage_chan("Dev1/ai14")
-        task.ai_channels.add_ai_voltage_chan("Dev1/ai16")
-        task.ai_channels.add_ai_voltage_chan("Dev1/ai24")
-        tasklist = task.read()
+        task.ai_channels.add_ai_voltage_chan("Dev1/ai20", terminal_config=TerminalConfiguration.RSE)
+        task.ai_channels.add_ai_voltage_chan("Dev1/ai21", terminal_config=TerminalConfiguration.RSE)
+        task.ai_channels.add_ai_voltage_chan("Dev1/ai22", terminal_config=TerminalConfiguration.RSE)
+        task.ai_channels.add_ai_voltage_chan("Dev1/ai3", terminal_config=TerminalConfiguration.RSE)
+        task.ai_channels.add_ai_voltage_chan("Dev1/ai4", terminal_config=TerminalConfiguration.RSE)
+        task.ai_channels.add_ai_voltage_chan("Dev1/ai5", terminal_config=TerminalConfiguration.RSE)
+        task.ai_channels.add_ai_voltage_chan("Dev1/ai13", terminal_config=TerminalConfiguration.RSE)
+        task.ai_channels.add_ai_voltage_chan("Dev1/ai6", terminal_config=TerminalConfiguration.RSE)
+        task.ai_channels.add_ai_voltage_chan("Dev1/ai14", terminal_config=TerminalConfiguration.RSE)
+        task.ai_channels.add_ai_voltage_chan("Dev1/ai16", terminal_config=TerminalConfiguration.RSE)
+        task.ai_channels.add_ai_voltage_chan("Dev1/ai24", terminal_config=TerminalConfiguration.RSE)
+        try:
+            tasklist = task.read()
+        except:
+            tasklist = [0,0,0,0,0,0,0,0,0,0,0]
+    linearisation(tasklist)
     if flag == 0:
         for i in range(12):
             framesensorname = tk.Frame(
@@ -414,15 +442,21 @@ while True:
 
     ############################
 
-    # now = datetime.now()
-    # timestamp = datetime.timestamp(now)
-    # dt_object: datetime = datetime.fromtimestamp(timestamp)
-    # timestr = dt_object.strftime('%Y-%m-%d %H:%M:%S')
-    #
-    # with open('innovators.csv', 'a', newline='') as file:
-    #     writer = csv.writer(file)
-    #     writer.writerow([timestr, ])
-
+    if time.time() - oldtime > 1: #every sec
+        oldtime = time.time()
+        now = datetime.now()
+        timestamp = datetime.timestamp(now)
+        dt_object: datetime = datetime.fromtimestamp(timestamp)
+        timestr = dt_object.strftime('%Y-%m-%d %H:%M:%S')
+        writetofile(seq3, 'upper back',timestr)
+        writetofile(seq, 'lower back',timestr)
+        writetofile(seq1, 'left chest',timestr)
+        writetofile(seq5, 'right chest',timestr)
+        writetofile(seq2, 'left thigh',timestr)
+        # writetofile(seq2, 'right thigh',timestr)
+        for i in range(11):
+            writetofile(tasklist[i],sensorname[i],timestr)
+        # z+=1
     ############################
     window.update()
     ser.reset_input_buffer()
@@ -435,11 +469,10 @@ while True:
     seq2.clear()
     seq3.clear()
     seq5.clear()
-    seqtemp.clear()
-
+    seq1.clear()
 ser.close()
 ser1.close()
 ser2.close()
 ser3.close()
-ser4.close()
+# ser4.close()
 ser5.close()
